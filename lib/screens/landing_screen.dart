@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import '../models/user_model.dart'; // Assuming you have a UserModel
-import 'welcome_screen.dart'; // Import WelcomeScreen
+import '../models/user_model.dart';
+import '../services/auth_service.dart';  // ✅ Import the AuthService
+import 'family_selection_screen.dart';
+import 'welcome_screen.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -13,79 +14,63 @@ class LandingPage extends StatefulWidget {
 }
 
 class _LandingPageState extends State<LandingPage> {
-  final AuthService _authService = AuthService(); // Create an instance
-  GoogleSignInAccount? _currentUser;
+  final AuthService _authService = AuthService(); // ✅ Use AuthService instance
 
   @override
   void initState() {
     super.initState();
-    _authService.onAuthStateChanged.listen((GoogleSignInAccount? account) {
-      setState(() {
-        _currentUser = account;
-      });
-      if (_currentUser != null) {
-        _handleLoginSuccess(_currentUser!);
+    _signInSilently();
+  }
+
+  Future<void> _signInSilently() async {
+    try {
+      final user = await _authService.handleSignInSilently();  // ✅ Call AuthService method
+      if (user != null) {
+        await _processLogin(user);
       }
-    });
-    _authService.handleSignInSilently();
+    } catch (error) {
+      print("Silent sign-in error: $error");
+    }
   }
 
   Future<void> _handleSignIn() async {
     try {
-      await _authService.handleSignIn();
+      final user = await _authService.handleSignIn();  // ✅ Use AuthService
+      if (user != null) {
+        await _processLogin(user);
+      }
     } catch (error) {
-      print(error);
+      print("Error during sign-in: $error");
     }
   }
 
-  Future<void> _handleLoginSuccess(GoogleSignInAccount user) async {
-    String? userId = await _authService.handleLoginSuccess(context, user);
+  Future<void> _processLogin(GoogleSignInAccount user) async {
+    String? userId = await _authService.handleLoginSuccess(context, user); // ✅ Use AuthService function
+
     if (userId != null) {
-      _navigateToWelcomeScreen(context, user.displayName ?? 'User');
+      final userModel = Provider.of<UserModel>(context, listen: false);
+      bool isNewUser = userModel.userId == null;  // ✅ Use UserModel to check new user
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => isNewUser ? FamilySelectionScreen() : WelcomeScreen(userName: user.displayName!),
+          ),
+        );
+      });
+    } else {
+      print("❌ Login failed");
     }
-  }
-
-  void _navigateToWelcomeScreen(BuildContext context, String name) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WelcomeScreen(
-          userName: name,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleLogout(BuildContext context) async {
-    // Sign out from Google
-    await _authService.handleSignOut();
-
-    // Clear the current user
-    setState(() {
-      _currentUser = null;
-    });
-
-    // Clear user data from UserModel
-    Provider.of<UserModel>(context, listen: false).clearUserData();
-
-    print("User signed out");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Welcome to Family Schedule'),
-      ),
       body: Center(
-        child: _currentUser == null
-            ? ElevatedButton(
+        child: ElevatedButton(
           onPressed: _handleSignIn,
-          child: Text('Sign in with Google'),
-        )
-            : ElevatedButton(
-          onPressed: () => _handleLogout(context), // Call logout from here
-          child: Text('Sign out'),
+          child: Text("Sign in with Google"),
         ),
       ),
     );

@@ -1,4 +1,3 @@
-// lib/services/auth_service.dart
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -17,11 +16,12 @@ class AuthService {
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
 
   // Handle Google Sign-In
-  Future<void> handleSignIn() async {
+  Future<GoogleSignInAccount?> handleSignIn() async {
     try {
-      await _googleSignIn.signIn();
+      return await _googleSignIn.signIn();
     } catch (error) {
-      print(error);
+      print("Error during sign-in: $error");
+      return null;
     }
   }
 
@@ -29,11 +29,12 @@ class AuthService {
   Future<void> handleSignOut() => _googleSignIn.disconnect();
 
   // Handle Silent Sign-In
-  Future<void> handleSignInSilently() async {
+  Future<GoogleSignInAccount?> handleSignInSilently() async {
     try {
-      await _googleSignIn.signInSilently();
+      return await _googleSignIn.signInSilently();
     } catch (error) {
       print('Error during silent sign-in: $error');
+      return null;
     }
   }
 
@@ -45,29 +46,27 @@ class AuthService {
     print('Display Name: ${user.displayName}');
 
     final response = await http.post(
-      Uri.parse('http://192.168.1.111:3000/register_user'), // Your backend route
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      Uri.parse('http://localhost:3000/auth/register_user'),
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: {
         'googleId': user.id,
         'email': user.email,
-        'name': user.displayName,
+        'name': user.displayName ?? "User",
       },
     );
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       print('User data sent to backend successfully');
       final responseData = jsonDecode(response.body);
       final userId = responseData['userId'].toString();
 
-      // Update the UserModel using the Provider
+      // Update UserModel with Provider
       Provider.of<UserModel>(context, listen: false).setUserData(
         userId: userId,
         userName: user.displayName,
       );
 
-      return userId;
+      return userId;  // ✅ Return userId
     } else {
       print('Failed to send user data to backend: ${response.statusCode}');
       return null;
@@ -79,20 +78,19 @@ class AuthService {
     try {
       if (userId != null) {
         final response = await http.get(
-          Uri.parse('http://192.168.1.111:3000/logout?userId=$userId'),
+          Uri.parse('http://localhost:3000/user/logout?userId=$userId'), // ✅ Corrected Route
         );
 
         if (response.statusCode == 200) {
-          print('Logout information updated successfully on the backend');
+          print('✅ Logout information updated successfully on the backend');
         } else {
-          print('Failed to update logout information on the backend: ${response.statusCode}');
+          print('❌ Failed to update logout information on the backend: ${response.statusCode}');
         }
       } else {
-        print('User ID is not available for logout.');
-        // Handle the case where userId is null, maybe re-authenticate or show an error
+        print('⚠️ User ID is not available for logout.');
       }
     } catch (error) {
-      print('Error during logout: $error');
+      print('❌ Error during logout: $error');
     }
 
     // Sign out from Google
@@ -100,15 +98,9 @@ class AuthService {
 
     // Clear user data from UserModel
     Provider.of<UserModel>(context, listen: false).clearUserData();
-
-    // No need to navigate here, let the calling widget handle navigation
   }
 
   // Listen to authentication changes
   Stream<GoogleSignInAccount?> get onAuthStateChanged =>
       _googleSignIn.onCurrentUserChanged;
-
-  signOut() {
-    
-  }
 }
