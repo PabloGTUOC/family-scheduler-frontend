@@ -46,7 +46,7 @@ class AuthService {
     print('Display Name: ${user.displayName}');
 
     final response = await http.post(
-      Uri.parse('http://localhost:3000/auth/register_user'),
+      Uri.parse('http://localhost:3000/auth/handle_user'),
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: {
         'googleId': user.id,
