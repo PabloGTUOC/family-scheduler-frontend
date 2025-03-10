@@ -45,23 +45,19 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   Future<void> _processLogin(GoogleSignInAccount user) async {
-    String? userId = await _authService.handleLoginSuccess(context, user); // ✅ Use AuthService function
+    await _authService.handleLoginSuccess(context, user);  // ✅ Update user data in provider
+    final userModel = Provider.of<UserModel>(context, listen: false); // ✅ Use AuthService function
 
-    if (userId != null) {
-      final userModel = Provider.of<UserModel>(context, listen: false);
-      bool isNewUser = userModel.userId == null;  // ✅ Use UserModel to check new user
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => isNewUser ? FamilySelectionScreen() : WelcomeScreen(userName: user.displayName!),
+            builder: (context) => userModel.isUserNew == true
+                ? FamilySelectionScreen()
+                : WelcomeScreen(userName: userModel.userName ?? "User"),
           ),
         );
       });
-    } else {
-      print("❌ Login failed");
-    }
   }
 
   @override

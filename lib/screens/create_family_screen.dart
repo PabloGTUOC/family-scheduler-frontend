@@ -1,8 +1,10 @@
+import 'dart:convert';
+
+import 'package:family_scheduler_frontend/screens/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class CreateFamilyScreen extends StatefulWidget {
   const CreateFamilyScreen({super.key});
@@ -47,14 +49,38 @@ class _CreateFamilyScreenState extends State<CreateFamilyScreen> {
     );
 
     if (response.statusCode == 201) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Family created successfully!")),
-      );
-      Navigator.pop(context); // Return to Family Selection
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to create family.")),
-      );
+      final responseData = jsonDecode(response.body);
+
+      // ✅ Print full response to debug
+      print("🔹 Response from backend: $responseData");
+
+      // ✅ Ensure response contains expected keys
+      if (responseData.containsKey('familyId') && responseData.containsKey('familyName')) {
+        userModel.setUserData(
+          userId: userModel.userId!,
+          userName: userModel.userName!,
+          isUserNew: userModel.isUserNew!,
+          familyId: responseData['familyId'],
+          familyName: responseData['familyName'],
+          originalUnitsDue: responseData['originalUnitsDue'],
+          currentUnitsDue: responseData['currentUnitsDue'],
+          userUnitBalance: responseData['userUnitBalance'],
+        );
+
+        // ✅ Print updated user model for debugging
+        print("🔹 Updated UserModel: ${userModel.familyName}, ${userModel.userUnitBalance}");
+
+        // ✅ Navigate to WelcomeScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => WelcomeScreen(userName: userModel.userName ?? "User")),
+        );
+      } else {
+        print("❌ Backend response missing family details!");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to retrieve family details. Please try again.")),
+        );
+      }
     }
   }
 

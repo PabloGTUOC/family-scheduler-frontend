@@ -39,7 +39,7 @@ class AuthService {
   }
 
   // Send user data to backend after successful sign-in
-  Future<String?> handleLoginSuccess(BuildContext context, GoogleSignInAccount user) async {
+  Future<void> handleLoginSuccess(BuildContext context, GoogleSignInAccount user) async {
     print('Google Sign-In User Data:');
     print('ID: ${user.id}');
     print('Email: ${user.email}');
@@ -60,13 +60,31 @@ class AuthService {
       final responseData = jsonDecode(response.body);
       final userId = responseData['userId'].toString();
 
+      // ✅ Extract `isNewUser` from response
+      bool isNewUser = responseData['isNewUser'] is bool
+          ? responseData['isNewUser']
+          : responseData['isNewUser'].toString().toLowerCase() == 'true';
+
+      // Extract family data if available
+      final familyData = responseData['family'];
+      int? familyId = familyData?['familyId'];
+      String? familyName = familyData?['familyName'];
+      int? originalUnitsDue = familyData?['originalUnitsDue'];
+      int? currentUnitsDue = familyData?['currentUnitsDue'];
+      int? userUnitBalance = responseData['userUnitBalance'];
+
       // Update UserModel with Provider
       Provider.of<UserModel>(context, listen: false).setUserData(
         userId: userId,
-        userName: user.displayName,
+        userName: user.displayName!,
+        isUserNew: isNewUser,
+        familyId: familyId,
+        familyName: familyName,
+        originalUnitsDue: originalUnitsDue,
+        currentUnitsDue: currentUnitsDue,
+        userUnitBalance: userUnitBalance,
       );
-
-      return userId;  // ✅ Return userId
+      //return userId;  // ✅ Return userId
     } else {
       print('Failed to send user data to backend: ${response.statusCode}');
       return null;
